@@ -79,6 +79,11 @@ const Admin = () => {
   const [showProjectAccessModal, setShowProjectAccessModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProjects, setSelectedProjects] = useState([]);
+
+  // Debug effect to track selectedProjects changes
+  useEffect(() => {
+    console.log('selectedProjects changed:', selectedProjects);
+  }, [selectedProjects]);
   
   // Handle Escape key to close modal
   useEffect(() => {
@@ -378,9 +383,28 @@ const Admin = () => {
       await testProjectAccess(user.id);
       
       const userProjectAccess = await getUserProjectAccess(user.id);
+      const projectIds = userProjectAccess.map(access => access.project_id);
+      
+      console.log('=== PROJECT ACCESS DEBUGGING ===');
+      console.log('User:', user.email, user.id);
       console.log('User project access loaded:', userProjectAccess);
+      console.log('Extracted project IDs:', projectIds);
+      console.log('Available projects:', projects?.map(p => ({ id: p.id, title: p.title })));
+      
+      // Check for ID mismatches
+      const availableProjectIds = projects?.map(p => p.id) || [];
+      const missingProjects = projectIds.filter(id => !availableProjectIds.includes(id));
+      const matchingProjects = projectIds.filter(id => availableProjectIds.includes(id));
+      
+      console.log('Missing project IDs (in access but not in available):', missingProjects);
+      console.log('Matching project IDs:', matchingProjects);
+      
+      if (missingProjects.length > 0) {
+        console.warn('WARNING: User has access to projects that no longer exist or are not loaded');
+      }
+      
       setSelectedUser(user);
-      setSelectedProjects(userProjectAccess.map(access => access.project_id));
+      setSelectedProjects(projectIds);
       setShowProjectAccessModal(true);
     } catch (error) {
       console.error('Error loading project access:', error);
@@ -875,27 +899,38 @@ const Admin = () => {
                 </div>
 
                 <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
-                  {projects?.map((project) => (
-                    <div key={project.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`project-${project.id}`}
-                        checked={selectedProjects.includes(project.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedProjects([...selectedProjects, project.id]);
-                          } else {
-                            setSelectedProjects(selectedProjects.filter(id => id !== project.id));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <label htmlFor={`project-${project.id}`} className="text-sm cursor-pointer">
-                        <span className="font-medium">{project.title}</span>
-                        <span className="text-gray-500 ml-2">({project.area})</span>
-                      </label>
-                    </div>
-                  ))}
+                  {projects?.map((project) => {
+                    const isChecked = selectedProjects.includes(project.id);
+                    return (
+                      <div key={project.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`project-${project.id}`}
+                          checked={isChecked}
+                          onChange={(e) => {
+                            console.log(`Toggling project ${project.title} (${project.id}):`, e.target.checked);
+                            if (e.target.checked) {
+                              const newSelected = [...selectedProjects, project.id];
+                              console.log('New selected projects:', newSelected);
+                              setSelectedProjects(newSelected);
+                            } else {
+                              const newSelected = selectedProjects.filter(id => id !== project.id);
+                              console.log('New selected projects:', newSelected);
+                              setSelectedProjects(newSelected);
+                            }
+                          }}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor={`project-${project.id}`} className="text-sm cursor-pointer">
+                          <span className="font-medium">{project.title}</span>
+                          <span className="text-gray-500 ml-2">({project.area})</span>
+                          <span className={`ml-2 text-xs px-2 py-1 rounded ${isChecked ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                            {isChecked ? '✓ Selected' : 'Not Selected'}
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="flex justify-end space-x-4 mt-6">

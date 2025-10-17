@@ -1,24 +1,68 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../hooks/useProjects'
+import { useProjectAccess } from '../hooks/useUserManagement'
 import PropertyCard from '../components/PropertyCard'
 import Filters from '../components/Filters'
 import { useIsAdmin } from '../hooks/useAuth'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Lock, Eye } from 'lucide-react'
+import { supabase } from '../api/supabaseClient'
 
 const Projects = () => {
   const navigate = useNavigate()
   const { data: projects, isLoading, error } = useProjects()
-  const { isPremium, isAdminLoading } = useIsAdmin()
+  const { isPremium, isAdmin, isAdminLoading } = useIsAdmin()
+  const { getUserProjectAccess } = useProjectAccess()
   const [filters, setFilters] = useState({})
+  const [userProjectIds, setUserProjectIds] = useState([])
+  const [accessLoading, setAccessLoading] = useState(false)
+
+  // Load user's project access if they are premium (but not admin)
+  useEffect(() => {
+    const loadUserAccess = async () => {
+      console.log('=== LOADING USER ACCESS ===')
+      console.log('isPremium:', isPremium)
+      console.log('isAdmin:', isAdmin)
+      console.log('isAdminLoading:', isAdminLoading)
+      
+      if (isPremium && !isAdmin && !isAdminLoading) {
+        try {
+          console.log('Loading project access for premium non-admin user')
+          setAccessLoading(true)
+          const { data: { user } } = await supabase.auth.getUser()
+          console.log('Current user:', user?.email, user?.id)
+          
+          if (user) {
+            const userAccess = await getUserProjectAccess(user.id)
+            const projectIds = userAccess.map(access => access.project_id)
+            console.log('Raw user project access:', userAccess)
+            console.log('Extracted project IDs:', projectIds)
+            setUserProjectIds(projectIds)
+          }
+        } catch (err) {
+          console.error('Error loading user project access:', err)
+          setUserProjectIds([]) // Set empty array on error
+        } finally {
+          setAccessLoading(false)
+        }
+      } else {
+        console.log('Not loading access - user is either not premium, is admin, or admin loading')
+        setUserProjectIds([]) // Clear for non-premium or admin users
+      }
+    }
+
+    loadUserAccess()
+  }, [isPremium, isAdmin, isAdminLoading, getUserProjectAccess])
 
   // Debug logging
   console.log('Projects Debug:', {
     isPremium,
+    isAdmin,
     isAdminLoading,
-    projectsCount: projects?.length
+    projectsCount: projects?.length,
+    userProjectIds: userProjectIds.length
   });
 
   // Get unique areas for filter
@@ -27,11 +71,42 @@ const Projects = () => {
     return [...new Set(projects.map(p => p.area))]
   }, [projects])
 
-  // Filter projects based on filters
+  // Filter projects based on filters AND user access
   const filteredProjects = useMemo(() => {
     if (!projects) return []
     
-    return projects.filter(project => {
+    console.log('=== FILTERING PROJECTS ===')
+    console.log('Total projects:', projects.length)
+    console.log('isPremium:', isPremium, 'isAdmin:', isAdmin)
+    console.log('userProjectIds:', userProjectIds)
+    console.log('accessLoading:', accessLoading)
+    
+    const filtered = projects.filter(project => {
+      // User access filter for premium non-admin users
+      if (isPremium && !isAdmin) {
+        console.log(`Checking access for project ${project.title} (${project.id})`)
+        
+        // If we're still loading access, don't show any projects to avoid showing wrong ones
+        if (accessLoading) {
+          console.log('Still loading access, filtering out all projects')
+          return false
+        }
+        
+        // If user has no project access, don't show any projects
+        if (userProjectIds.length === 0) {
+          console.log('User has no project access, filtering out project')
+          return false
+        }
+        
+        // Check if user has access to this specific project
+        if (!userProjectIds.includes(project.id)) {
+          console.log('User does not have access to this project')
+          return false
+        }
+        
+        console.log('User has access to this project')
+      }
+      
       // Area filter
       if (filters.area && filters.area !== "" && project.area !== filters.area) return false
       
@@ -49,9 +124,14 @@ const Projects = () => {
       
       return true
     })
-  }, [projects, filters])
+    
+    console.log('Filtered projects count:', filtered.length)
+    console.log('Filtered projects:', filtered.map(p => ({ id: p.id, title: p.title })))
+    
+    return filtered
+  }, [projects, filters, isPremium, isAdmin, userProjectIds, accessLoading])
 
-  if (isLoading || isAdminLoading) {
+  if (isLoading || isAdminLoading || accessLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -131,14 +211,27 @@ const Projects = () => {
 
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map((project, index) => (
-          <PropertyCard
-            key={project.id}
-            project={project}
-            isBlurred={!isPremium && index >= 3}
-            index={index}
-          />
-        ))}
+        {filteredProjects.map((project, index) => {
+          // Determine if this project should be blurred
+          let isBlurred = false
+          
+          if (!isPremium) {
+            // Non-premium users: blur projects after index 3
+            isBlurred = index >= 3
+          } else if (isPremium && !isAdmin && userProjectIds.length > 0) {
+            // Premium users with specific access: don't blur (they only see their projects)
+            isBlurred = false
+          }
+          
+          return (
+            <PropertyCard
+              key={project.id}
+              project={project}
+              isBlurred={isBlurred}
+              index={index}
+            />
+          )
+        })}
       </div>
 
       {/* No Results */}
@@ -148,12 +241,25 @@ const Projects = () => {
             <div className="text-gray-400 mb-4">
               <Lock className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No properties found
-            </h3>
-            <p className="text-gray-600">
-              Try adjusting your filters or check back later for new listings.
-            </p>
+            {isPremium && !isAdmin && userProjectIds.length === 0 && !accessLoading ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No project access granted
+                </h3>
+                <p className="text-gray-600">
+                  Please contact the administrator to get access to specific projects.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No properties found
+                </h3>
+                <p className="text-gray-600">
+                  Try adjusting your filters or check back later for new listings.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
