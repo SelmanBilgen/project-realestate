@@ -177,14 +177,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="mt-4 space-y-2 text-sm text-gray-600">
-                <p>
-                  <strong>Admin:</strong> admin@rigelhomes.com / admin123
-                </p>
-                <p>
-                  <strong>Premium:</strong> premium@rigelhomes.com / premium123
-                </p>
-              </div>
+              
             </div>
           </CardContent>
         </Card>
