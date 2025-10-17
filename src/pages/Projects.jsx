@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../hooks/useProjects'
-import { useProjectAccess } from '../hooks/useUserManagement'
+import { useProjectAccess, usePublicProjectAccess } from '../hooks/useUserManagement'
 import PropertyCard from '../components/PropertyCard'
 import Filters from '../components/Filters'
-import { useIsAdmin } from '../hooks/useAuth'
+import { useIsAdmin, useSession } from '../hooks/useAuth'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Lock, Eye } from 'lucide-react'
@@ -13,42 +13,34 @@ import { supabase } from '../api/supabaseClient'
 const Projects = () => {
   const navigate = useNavigate()
   const { data: projects, isLoading, error } = useProjects()
+  const { session } = useSession()
   const { isPremium, isAdmin, isAdminLoading } = useIsAdmin()
   const { getUserProjectAccess } = useProjectAccess()
+  const { getPublicProjects } = usePublicProjectAccess()
   const [filters, setFilters] = useState({})
   const [userProjectIds, setUserProjectIds] = useState([])
+  const [publicProjectIds, setPublicProjectIds] = useState([])
   const [accessLoading, setAccessLoading] = useState(false)
 
-  // Load user's project access if they are premium (but not admin)
+    // Load user's project access if they are premium (but not admin)
   useEffect(() => {
     const loadUserAccess = async () => {
-      console.log('=== LOADING USER ACCESS ===')
-      console.log('isPremium:', isPremium)
-      console.log('isAdmin:', isAdmin)
-      console.log('isAdminLoading:', isAdminLoading)
-      
       if (isPremium && !isAdmin && !isAdminLoading) {
         try {
-          console.log('Loading project access for premium non-admin user')
           setAccessLoading(true)
           const { data: { user } } = await supabase.auth.getUser()
-          console.log('Current user:', user?.email, user?.id)
           
           if (user) {
             const userAccess = await getUserProjectAccess(user.id)
             const projectIds = userAccess.map(access => access.project_id)
-            console.log('Raw user project access:', userAccess)
-            console.log('Extracted project IDs:', projectIds)
             setUserProjectIds(projectIds)
           }
         } catch (err) {
-          console.error('Error loading user project access:', err)
           setUserProjectIds([]) // Set empty array on error
         } finally {
           setAccessLoading(false)
         }
       } else {
-        console.log('Not loading access - user is either not premium, is admin, or admin loading')
         setUserProjectIds([]) // Clear for non-premium or admin users
       }
     }
@@ -56,14 +48,27 @@ const Projects = () => {
     loadUserAccess()
   }, [isPremium, isAdmin, isAdminLoading, getUserProjectAccess])
 
-  // Debug logging
-  console.log('Projects Debug:', {
-    isPremium,
-    isAdmin,
-    isAdminLoading,
-    projectsCount: projects?.length,
-    userProjectIds: userProjectIds.length
-  });
+  // Load public projects for non-logged-in users
+  useEffect(() => {
+    const loadPublicAccess = async () => {
+      if (!session) {
+        try {
+          setAccessLoading(true)
+          const publicAccess = await getPublicProjects()
+          const projectIds = publicAccess.map(access => access.project_id)
+          setPublicProjectIds(projectIds)
+        } catch (err) {
+          setPublicProjectIds([]) // Set empty array on error
+        } finally {
+          setAccessLoading(false)
+        }
+      } else {
+        setPublicProjectIds([]) // Clear for logged-in users
+      }
+    }
+
+    loadPublicAccess()
+  }, [session, getPublicProjects])
 
   // Get unique areas for filter
   const areas = useMemo(() => {
@@ -75,37 +80,50 @@ const Projects = () => {
   const filteredProjects = useMemo(() => {
     if (!projects) return []
     
-    console.log('=== FILTERING PROJECTS ===')
-    console.log('Total projects:', projects.length)
-    console.log('isPremium:', isPremium, 'isAdmin:', isAdmin)
-    console.log('userProjectIds:', userProjectIds)
-    console.log('accessLoading:', accessLoading)
-    
     const filtered = projects.filter(project => {
-      // User access filter for premium non-admin users
-      if (isPremium && !isAdmin) {
-        console.log(`Checking access for project ${project.title} (${project.id})`)
-        
-        // If we're still loading access, don't show any projects to avoid showing wrong ones
+      // Access control logic based on user type
+      if (!session) {
+        // Non-logged-in visitors: show only public projects
         if (accessLoading) {
-          console.log('Still loading access, filtering out all projects')
+          return false // Still loading, don't show any projects
+        }
+        
+        if (publicProjectIds.length === 0) {
+          return false // No public projects available
+        }
+        
+        if (!publicProjectIds.includes(project.id)) {
+          return false // Project is not marked as public
+        }
+      } else if (isPremium && !isAdmin) {
+        // Premium non-admin users: show their specific project access
+        if (accessLoading) {
           return false
         }
         
-        // If user has no project access, don't show any projects
         if (userProjectIds.length === 0) {
-          console.log('User has no project access, filtering out project')
           return false
         }
         
-        // Check if user has access to this specific project
         if (!userProjectIds.includes(project.id)) {
-          console.log('User does not have access to this project')
+          return false
+        }
+      } else if (!isPremium && !isAdmin && session) {
+        // Regular logged-in users: show public projects (same as visitors)
+        if (accessLoading) {
           return false
         }
         
-        console.log('User has access to this project')
+        if (publicProjectIds.length === 0) {
+          return false
+        }
+        
+        if (!publicProjectIds.includes(project.id)) {
+          return false
+        }
       }
+      // Admin users: see all projects (no filtering)
+      // This logic automatically allows admins to see everything
       
       // Area filter
       if (filters.area && filters.area !== "" && project.area !== filters.area) return false
@@ -124,9 +142,6 @@ const Projects = () => {
       
       return true
     })
-    
-    console.log('Filtered projects count:', filtered.length)
-    console.log('Filtered projects:', filtered.map(p => ({ id: p.id, title: p.title })))
     
     return filtered
   }, [projects, filters, isPremium, isAdmin, userProjectIds, accessLoading])

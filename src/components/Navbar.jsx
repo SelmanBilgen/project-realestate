@@ -9,15 +9,6 @@ const Navbar = () => {
   const { isAdmin, isPremium, isAdminLoading } = useIsAdmin();
   const navigate = useNavigate();
 
-  // Debug logging
-  console.log('Navbar Debug:', {
-    userEmail: session?.user?.email,
-    isAdmin,
-    isPremium,
-    isAdminLoading,
-    hasSession: !!session
-  });
-
   const handleSignOut = () => {
     signOut();
     navigate("/");

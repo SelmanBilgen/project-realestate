@@ -52,7 +52,6 @@ export const useIsAdmin = () => {
       if (sessionLoading || hasChecked) return;
 
       if (!session?.user) {
-        console.log('No session or user found');
         if (mounted) {
           setIsAdmin(false);
           setIsPremium(false);
@@ -62,7 +61,6 @@ export const useIsAdmin = () => {
         return;
       }
 
-      console.log('Checking admin status for user:', session.user.id, 'email:', session.user.email);
       if (mounted) {
         setIsAdminLoading(true);
       }
@@ -71,42 +69,32 @@ export const useIsAdmin = () => {
       const isAdminByEmail = session.user.email === 'admin@rigelhomes.com';
       const isPremiumByEmail = session.user.email === 'premium@rigelhomes.com';
       
-      console.log('Email-based check:', { 
-        email: session.user.email, 
-        isAdminByEmail, 
-        isPremiumByEmail 
-      });
-      
       try {
-        // Start with basic query that should always work
+        // Query the profile
         const { data, error } = await supabase
           .from("profiles")
-          .select("is_admin, email")
+          .select("is_admin, is_premium, email")
           .eq("id", session.user.id)
           .single();
-
-        console.log('Database check result:', { data, error, userId: session.user.id });
 
         if (!mounted) return;
 
         if (error) {
-          console.error('Error checking admin status:', error);
           // Fallback to email-based check if database fails
-          console.log('Using email-based fallback');
           setIsAdmin(isAdminByEmail);
           setIsPremium(isAdminByEmail || isPremiumByEmail);
         } else if (data) {
           const adminStatus = data.is_admin || isAdminByEmail;
-          // Admin users and premium@rigelhomes.com get premium access
-          const premiumStatus = adminStatus || isPremiumByEmail;
+          // Check is_premium from database OR admin status OR hardcoded premium email
+          const premiumStatus = data.is_premium || adminStatus || isPremiumByEmail;
           
-          console.log('Setting admin status to:', adminStatus);
-          console.log('Setting premium status to:', premiumStatus);
           setIsAdmin(adminStatus);
           setIsPremium(premiumStatus);
+        } else {
+          setIsAdmin(isAdminByEmail);
+          setIsPremium(isAdminByEmail || isPremiumByEmail);
         }
       } catch (error) {
-        console.error('Admin check failed:', error);
         if (mounted) {
           setIsAdmin(false);
           setIsPremium(false);

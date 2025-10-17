@@ -33,14 +33,6 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { session, loading: isLoading } = useSession();
   const { isAdmin, isAdminLoading } = useIsAdmin();
 
-  console.log('ProtectedRoute Debug:', {
-    session: session?.user?.email,
-    isLoading,
-    isAdmin,
-    isAdminLoading,
-    requireAdmin
-  });
-
   if (isLoading || (requireAdmin && isAdminLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -50,12 +42,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
   }
 
   if (!session) {
-    console.log('No session, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   if (requireAdmin && !isAdmin) {
-    console.log('Admin required but user is not admin, redirecting to home');
     return <Navigate to="/" replace />;
   }
 

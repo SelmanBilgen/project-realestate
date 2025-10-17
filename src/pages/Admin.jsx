@@ -79,11 +79,6 @@ const Admin = () => {
   const [showProjectAccessModal, setShowProjectAccessModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProjects, setSelectedProjects] = useState([]);
-
-  // Debug effect to track selectedProjects changes
-  useEffect(() => {
-    console.log('selectedProjects changed:', selectedProjects);
-  }, [selectedProjects]);
   
   // Handle Escape key to close modal
   useEffect(() => {
@@ -385,29 +380,10 @@ const Admin = () => {
       const userProjectAccess = await getUserProjectAccess(user.id);
       const projectIds = userProjectAccess.map(access => access.project_id);
       
-      console.log('=== PROJECT ACCESS DEBUGGING ===');
-      console.log('User:', user.email, user.id);
-      console.log('User project access loaded:', userProjectAccess);
-      console.log('Extracted project IDs:', projectIds);
-      console.log('Available projects:', projects?.map(p => ({ id: p.id, title: p.title })));
-      
-      // Check for ID mismatches
-      const availableProjectIds = projects?.map(p => p.id) || [];
-      const missingProjects = projectIds.filter(id => !availableProjectIds.includes(id));
-      const matchingProjects = projectIds.filter(id => availableProjectIds.includes(id));
-      
-      console.log('Missing project IDs (in access but not in available):', missingProjects);
-      console.log('Matching project IDs:', matchingProjects);
-      
-      if (missingProjects.length > 0) {
-        console.warn('WARNING: User has access to projects that no longer exist or are not loaded');
-      }
-      
       setSelectedUser(user);
       setSelectedProjects(projectIds);
       setShowProjectAccessModal(true);
     } catch (error) {
-      console.error('Error loading project access:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to load project access",
@@ -418,9 +394,6 @@ const Admin = () => {
 
   const handleSaveProjectAccess = async () => {
     try {
-      console.log('Saving project access for user:', selectedUser.id);
-      console.log('Selected projects:', selectedProjects);
-      
       await grantProjectAccess(selectedUser.id, selectedProjects);
       
       // Verify the save by fetching the data again
@@ -435,7 +408,6 @@ const Admin = () => {
       setSelectedUser(null);
       setSelectedProjects([]);
     } catch (error) {
-      console.error('Error saving project access:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update project access",
