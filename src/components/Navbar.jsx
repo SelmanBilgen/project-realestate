@@ -1,18 +1,27 @@
-import React from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Button } from './ui/button'
-import { useSession, useSignOut, useIsAdmin } from '../hooks/useAuth'
+import React from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "./ui/button";
+import { useSession, useSignOut, useIsAdmin } from "../hooks/useAuth";
 
 const Navbar = () => {
-  const { data: session } = useSession()
-  const { mutate: signOut } = useSignOut()
-  const { isAdmin } = useIsAdmin()
-  const navigate = useNavigate()
+  const { session } = useSession();
+  const { mutate: signOut } = useSignOut();
+  const { isAdmin, isPremium, isAdminLoading } = useIsAdmin();
+  const navigate = useNavigate();
+
+  // Debug logging
+  console.log('Navbar Debug:', {
+    userEmail: session?.user?.email,
+    isAdmin,
+    isPremium,
+    isAdminLoading,
+    hasSession: !!session
+  });
 
   const handleSignOut = () => {
-    signOut()
-    navigate('/')
-  }
+    signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -23,28 +32,34 @@ const Navbar = () => {
               Rigel Premium Homes
             </Link>
           </div>
-          
+
           <div className="hidden md:block">
             <div className="ml-10 flex items-baseline space-x-4">
-              <Link 
-                to="/projects" 
+              <Link
+                to="/projects"
                 className="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 All Projects
               </Link>
-              
-              {session && (
-                <Link 
-                  to="/premium" 
+
+              {!isPremium && (
+                <Link
+                  to="/premium"
                   className="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Premium Access
                 </Link>
               )}
-              
+
+              {isPremium && !isAdmin && (
+                <span className="text-green-600 px-3 py-2 rounded-md text-sm font-medium">
+                  Premium Member
+                </span>
+              )}
+
               {isAdmin && (
-                <Link 
-                  to="/admin" 
+                <Link
+                  to="/admin"
                   className="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Admin Panel
@@ -59,19 +74,15 @@ const Navbar = () => {
                 <span className="text-sm text-gray-700">
                   Welcome, {session.user.email}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleSignOut}
-                >
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
                   Logout
                 </Button>
               </>
             ) : (
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 size="sm"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
               >
                 Login
               </Button>
@@ -80,7 +91,7 @@ const Navbar = () => {
         </div>
       </div>
     </nav>
-  )
-}
+  );
+};
 
-export default Navbar
+export default Navbar;

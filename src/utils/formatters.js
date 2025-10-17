@@ -15,7 +15,11 @@ export const formatNumber = (number) => {
 
 // Format percentage
 export const formatPercentage = (value) => {
-  return `${value.toFixed(1)}%`
+  const num = parseFloat(value);
+  if (isNaN(num) || !isFinite(num)) {
+    return '0.0%';
+  }
+  return `${num.toFixed(1)}%`;
 }
 
 // Format date
@@ -29,9 +33,25 @@ export const formatDate = (dateString) => {
 
 // Calculate ROI
 export const calculateROI = (purchasePrice, sellingPrice, additionalCosts = 0) => {
-  const totalInvestment = purchasePrice + additionalCosts
-  const profit = sellingPrice - totalInvestment
-  return (profit / totalInvestment) * 100
+  // Ensure all inputs are valid numbers
+  const purchase = parseFloat(purchasePrice) || 0;
+  const selling = parseFloat(sellingPrice) || 0;
+  const costs = parseFloat(additionalCosts) || 0;
+  
+  // Check for valid inputs
+  if (purchase <= 0 || selling <= 0) {
+    return 0;
+  }
+  
+  const totalInvestment = purchase + costs;
+  
+  // Avoid division by zero
+  if (totalInvestment <= 0) {
+    return 0;
+  }
+  
+  const profit = selling - totalInvestment;
+  return (profit / totalInvestment) * 100;
 }
 
 // Calculate profit

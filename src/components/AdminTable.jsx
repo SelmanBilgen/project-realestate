@@ -1,40 +1,42 @@
-import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
-import { formatCurrency, formatDate } from '../../utils/formatters'
-import { Edit, Trash2, Eye, Plus } from 'lucide-react'
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { formatCurrency, formatDate, calculateROI, formatPercentage } from "../utils/formatters.js";
+import { Edit, Trash2, Eye, Plus } from "lucide-react";
 
-const AdminTable = ({ 
-  projects, 
-  onEdit, 
-  onDelete, 
+const AdminTable = ({
+  projects,
+  onEdit,
+  onDelete,
   onView,
   loading = false,
-  error = null 
+  error = null,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const filteredProjects = projects?.filter(project => {
-    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.area.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = !statusFilter || project.status === statusFilter
-    return matchesSearch && matchesStatus
-  }) || []
+  const filteredProjects =
+    projects?.filter((project) => {
+      const matchesSearch =
+        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.area.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = !statusFilter || project.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    }) || [];
 
   const getStatusBadgeClasses = (status) => {
     switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800'
-      case 'sold':
-        return 'bg-red-100 text-red-800'
-      case 'reserved':
-        return 'bg-yellow-100 text-yellow-800'
+      case "available":
+        return "bg-green-100 text-green-800";
+      case "sold":
+        return "bg-red-100 text-red-800";
+      case "reserved":
+        return "bg-yellow-100 text-yellow-800";
       default:
-        return 'bg-gray-100 text-gray-800'
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -43,24 +45,26 @@ const AdminTable = ({
           <div className="animate-pulse">
             <div className="h-10 bg-gray-200 rounded mb-4"></div>
             <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map(i => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="h-12 bg-gray-200 rounded"></div>
               ))}
             </div>
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   if (error) {
     return (
       <Card className="bg-red-50 border-red-200">
         <CardContent className="pt-6">
-          <p className="text-red-800">Error loading projects: {error.message}</p>
+          <p className="text-red-800">
+            Error loading projects: {error.message}
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -73,7 +77,7 @@ const AdminTable = ({
             Add New Property
           </Button>
         </div>
-        
+
         {/* Filters */}
         <div className="mt-4 flex space-x-4">
           <Input
@@ -94,19 +98,36 @@ const AdminTable = ({
           </select>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Property</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Area</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Price</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Golden Visa</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Created</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Actions</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Property
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Area
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Price
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Status
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Golden Visa
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  ROI
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Created
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -116,7 +137,8 @@ const AdminTable = ({
                     <div>
                       <div className="font-medium">{project.title}</div>
                       <div className="text-sm text-gray-500">
-                        {project.bedrooms} bed, {project.bathrooms} bath • {project.size}m²
+                        {project.bedrooms} bed, {project.bathrooms} bath •{" "}
+                        {project.size}m²
                       </div>
                     </div>
                   </td>
@@ -125,7 +147,11 @@ const AdminTable = ({
                     {formatCurrency(project.price)}
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClasses(project.status)}`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClasses(
+                        project.status
+                      )}`}
+                    >
                       {project.status}
                     </span>
                   </td>
@@ -135,6 +161,31 @@ const AdminTable = ({
                     ) : (
                       <span className="text-gray-400">No</span>
                     )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {(() => {
+                      if (!project.selling_price || (!project.purchase_price && !project.price)) {
+                        return <span className="text-gray-400">-</span>;
+                      }
+                      
+                      try {
+                        const purchasePrice = project.purchase_price || project.price;
+                        const additionalCosts = (project.transfer_fees || 0) + (project.renovation_cost || 0);
+                        const roi = calculateROI(purchasePrice, project.selling_price, additionalCosts);
+                        
+                        if (isNaN(roi) || !isFinite(roi)) {
+                          return <span className="text-gray-400">-</span>;
+                        }
+                        
+                        return (
+                          <span className={`font-medium ${roi > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {formatPercentage(roi)}
+                          </span>
+                        );
+                      } catch (error) {
+                        return <span className="text-gray-400">-</span>;
+                      }
+                    })()}
                   </td>
                   <td className="py-3 px-4 text-sm text-gray-500">
                     {formatDate(project.created_at)}
@@ -173,15 +224,17 @@ const AdminTable = ({
             </tbody>
           </table>
         </div>
-        
+
         {filteredProjects.length === 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500">No projects found matching your criteria.</p>
+            <p className="text-gray-500">
+              No projects found matching your criteria.
+            </p>
           </div>
         )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default AdminTable
+export default AdminTable;

@@ -1,61 +1,66 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useSignIn, useSession } from '../hooks/useAuth'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { useToast } from '../components/ui/toast'
-import { Loader2, LogIn } from 'lucide-react'
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useSignIn, useSession } from "../hooks/useAuth";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { useToast } from "../components/ui/toast";
+import { Loader2, LogIn } from "lucide-react";
 
 const Login = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { data: session } = useSession()
-  const { mutate: signIn, isPending } = useSignIn()
-  const { toast } = useToast()
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { session } = useSession();
+  const { mutate: signIn, isPending } = useSignIn();
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  })
+    email: "",
+    password: "",
+  });
 
   // Redirect if already logged in
   useEffect(() => {
     if (session) {
-      const from = location.state?.from?.pathname || '/'
-      navigate(from, { replace: true })
+      const from = location.state?.from?.pathname || "/";
+      navigate(from, { replace: true });
     }
-  }, [session, navigate, location])
+  }, [session, navigate, location]);
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    
+    e.preventDefault();
+
     signIn(formData, {
       onSuccess: () => {
         toast({
           title: "Login Successful",
           description: "Welcome back!",
-        })
-        const from = location.state?.from?.pathname || '/'
-        navigate(from, { replace: true })
+        });
+        const from = location.state?.from?.pathname || "/";
+        navigate(from, { replace: true });
       },
       onError: (error) => {
         toast({
           title: "Login Failed",
           description: error.message || "Invalid email or password",
           variant: "destructive",
-        })
+        });
       },
-    })
-  }
+    });
+  };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    })
-  }
+    });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -64,9 +69,7 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Rigel Premium Homes
           </h1>
-          <p className="text-gray-600">
-            Admin Login
-          </p>
+          <p className="text-gray-600">Admin Login</p>
         </div>
 
         <Card>
@@ -78,7 +81,10 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Email address
                 </Label>
                 <Input
@@ -95,7 +101,10 @@ const Login = () => {
               </div>
 
               <div>
-                <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <Label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Password
                 </Label>
                 <Input
@@ -119,24 +128,28 @@ const Login = () => {
                     type="checkbox"
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                   />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                  <label
+                    htmlFor="remember-me"
+                    className="ml-2 block text-sm text-gray-900"
+                  >
                     Remember me
                   </label>
                 </div>
 
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-primary hover:text-primary/80">
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => navigate("/forgot-password")}
+                  >
                     Forgot your password?
-                  </a>
+                  </Button>
                 </div>
               </div>
 
               <div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isPending}
-                >
+                <Button type="submit" className="w-full" disabled={isPending}>
                   {isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -165,8 +178,12 @@ const Login = () => {
               </div>
 
               <div className="mt-4 space-y-2 text-sm text-gray-600">
-                <p><strong>Admin:</strong> admin@rigelhomes.com / admin123</p>
-                <p><strong>Premium:</strong> premium@rigelhomes.com / premium123</p>
+                <p>
+                  <strong>Admin:</strong> admin@rigelhomes.com / admin123
+                </p>
+                <p>
+                  <strong>Premium:</strong> premium@rigelhomes.com / premium123
+                </p>
               </div>
             </div>
           </CardContent>
@@ -174,15 +191,22 @@ const Login = () => {
 
         <div className="text-center text-sm text-gray-600">
           <p>
-            Don't have an account?{' '}
-            <a href="#" className="font-medium text-primary hover:text-primary/80">
+            Don't have an account?{" "}
+            {/* <a href="#" className="font-medium text-primary hover:text-primary/80">
               Contact support
-            </a>
+            </a> */}
           </p>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => navigate("/signup")}
+          >
+            Create an account
+          </Button>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Login
+export default Login;

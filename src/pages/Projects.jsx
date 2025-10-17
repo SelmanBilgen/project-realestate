@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjects } from '../hooks/useProjects'
 import PropertyCard from '../components/PropertyCard'
 import Filters from '../components/Filters'
@@ -8,9 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Lock, Eye } from 'lucide-react'
 
 const Projects = () => {
+  const navigate = useNavigate()
   const { data: projects, isLoading, error } = useProjects()
-  const { isPremium } = useIsAdmin()
+  const { isPremium, isAdminLoading } = useIsAdmin()
   const [filters, setFilters] = useState({})
+
+  // Debug logging
+  console.log('Projects Debug:', {
+    isPremium,
+    isAdminLoading,
+    projectsCount: projects?.length
+  });
 
   // Get unique areas for filter
   const areas = useMemo(() => {
@@ -23,16 +32,26 @@ const Projects = () => {
     if (!projects) return []
     
     return projects.filter(project => {
-      if (filters.area && project.area !== filters.area) return false
-      if (filters.status && project.status !== filters.status) return false
-      if (filters.minPrice && project.price < filters.minPrice) return false
-      if (filters.maxPrice && project.price > filters.maxPrice) return false
+      // Area filter
+      if (filters.area && filters.area !== "" && project.area !== filters.area) return false
+      
+      // Status filter  
+      if (filters.status && filters.status !== "" && project.status !== filters.status) return false
+      
+      // Min price filter
+      if (filters.minPrice && filters.minPrice !== "" && project.price < parseFloat(filters.minPrice)) return false
+      
+      // Max price filter
+      if (filters.maxPrice && filters.maxPrice !== "" && project.price > parseFloat(filters.maxPrice)) return false
+      
+      // Golden visa filter
       if (filters.goldenVisa !== undefined && project.golden_visa !== filters.goldenVisa) return false
+      
       return true
     })
   }, [projects, filters])
 
-  if (isLoading) {
+  if (isLoading || isAdminLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -98,7 +117,11 @@ const Projects = () => {
                   </p>
                 </div>
               </div>
-              <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                variant="default" 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => navigate('/login')}
+              >
                 Get Premium Access
               </Button>
             </div>

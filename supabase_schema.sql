@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS projects (
   golden_visa BOOLEAN DEFAULT false,
   completion_year INTEGER,
   image_url TEXT,
+  images_data TEXT, -- JSON string containing array of image objects
   description TEXT,
   purchase_price NUMERIC(12, 2) DEFAULT 0,
   transfer_fees NUMERIC(12, 2) DEFAULT 0,

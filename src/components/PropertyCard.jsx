@@ -2,11 +2,24 @@ import React from 'react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
-import { formatCurrency, formatNumber } from '../utils/formatters'
+import { formatCurrency, formatNumber, calculateROI, formatPercentage } from '../utils/formatters'
 import { projectStatus } from '../types/project'
 
 const PropertyCard = ({ project, isBlurred = false, index }) => {
   const navigate = useNavigate()
+  
+  // Calculate ROI dynamically
+  const calculateProjectROI = () => {
+    if (!project.selling_price || (!project.purchase_price && !project.price)) {
+      return null;
+    }
+    
+    const purchasePrice = project.purchase_price || project.price;
+    const additionalCosts = (project.transfer_fees || 0) + (project.renovation_cost || 0);
+    return calculateROI(purchasePrice, project.selling_price, additionalCosts);
+  }
+  
+  const roi = calculateProjectROI();
   
   const getStatusBadgeClasses = (status) => {
     switch (status) {
@@ -22,14 +35,26 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
   }
 
   return (
-    <Card className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
-      isBlurred ? 'filter blur-sm' : ''
-    }`}>
-      <div className="relative">
+    <Card className={`overflow-hidden transition-all duration-500 ease-out transform 
+      shadow-lg hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] 
+      ${isBlurred ? 'filter blur-sm' : ''}
+      relative group
+    `} 
+    style={{
+      boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.1)',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.boxShadow = '0 25px 50px rgba(0, 0, 0, 0.15), 0 10px 20px rgba(0, 0, 0, 0.1)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.1)';
+    }}
+    >
+      <div className="relative overflow-hidden">
         <img 
           src={project.image_url || `https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=250&fit=crop`} 
           alt={project.title}
-          className="w-full h-48 object-cover"
+          className="w-full h-48 object-cover transition-transform duration-700 ease-out group-hover:scale-110"
         />
         
         {/* Badges */}
@@ -67,7 +92,7 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
           </div>
           <div>
             <span className="text-gray-600">Size:</span>
-            <p className="font-semibold">{formatNumber(project.size)} m²</p>
+            <p className="font-semibold">{formatNumber(project.size)} sqm</p>
           </div>
           <div>
             <span className="text-gray-600">Bedrooms:</span>
@@ -79,11 +104,11 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
           </div>
         </div>
         
-        {project.roi && (
+        {roi !== null && (
           <div className="mt-4 p-3 bg-blue-50 rounded-lg">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Expected ROI:</span>
-              <span className="font-semibold text-blue-600">{project.roi}%</span>
+              <span className="font-semibold text-blue-600">{formatPercentage(roi)}</span>
             </div>
           </div>
         )}
