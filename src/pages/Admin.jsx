@@ -668,21 +668,20 @@ const Admin = () => {
           }}
         >
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto relative">
-            {/* Close Button */}
-            <Button
-              variant="ghost"
-              onClick={() => setShowModal(false)}
-              aria-label="Close modal"
-              className="absolute right-2 top-2 z-10 w-8 h-8 p-0 hover:bg-gray-100 rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6 pr-8">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
                   {editingProject ? "Edit Property" : "Add New Property"}
                 </h2>
+                {/* Close Button */}
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowModal(false)}
+                  aria-label="Close modal"
+                  className="w-8 h-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -917,20 +916,19 @@ const Admin = () => {
           }}
         >
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto relative">
-            <Button
-              variant="ghost"
-              onClick={() => setShowProjectAccessModal(false)}
-              aria-label="Close modal"
-              className="absolute right-2 top-2 z-10 w-8 h-8 p-0 hover:bg-gray-100 rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-
             <div className="p-6">
-              <div className="flex justify-between items-center mb-6 pr-8">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
                   Manage Project Access for {selectedUser.email}
                 </h2>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowProjectAccessModal(false)}
+                  aria-label="Close modal"
+                  className="w-8 h-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
               </div>
 
               <div className="space-y-4">

@@ -693,9 +693,9 @@ const ProjectDetail = () => {
           <div className="relative max-w-4xl max-h-full">
             <button
               onClick={() => setShowImageModal(false)}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+              className="absolute top-4 right-4 text-red-500 hover:text-red-400 hover:bg-red-500/20 rounded-full p-2 z-10 transition-colors"
             >
-              <X className="h-8 w-8" />
+              <X className="h-6 w-6" />
             </button>
             <img
               src={imageGallery[currentImageIndex]}

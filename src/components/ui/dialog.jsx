@@ -42,10 +42,10 @@ const DialogTitle = ({ className, ...props }) => (
 
 const DialogClose = ({ className, ...props }) => (
   <button
-    className={cn("p-1 hover:bg-gray-100 rounded", className)}
+    className={cn("p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors", className)}
     {...props}
   >
-    <X className="h-4 w-4" />
+    <X className="h-5 w-5" />
   </button>
 )
 
