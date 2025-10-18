@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatNumber, calculateROI, formatPercentage } from '../utils/formatters'
 import { projectStatus } from '../types/project'
 
-const PropertyCard = ({ project, isBlurred = false, index }) => {
+const PropertyCard = ({ project, isBlurred = false, isAccessible = true, userType = 'visitor', index }) => {
   const navigate = useNavigate()
   
   // Calculate ROI dynamically
@@ -37,8 +37,8 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
   return (
     <Card className={`overflow-hidden transition-all duration-500 ease-out transform 
       shadow-lg hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02] 
-      ${isBlurred ? 'filter blur-sm' : ''}
-      relative group
+      ${isBlurred ? 'filter blur-[2px] grayscale-[30%]' : ''}
+      relative group cursor-pointer
     `} 
     style={{
       boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1), 0 4px 10px rgba(0, 0, 0, 0.1)',
@@ -68,12 +68,59 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
             {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
           </span>
         </div>
-        
+
         {isBlurred && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="text-white text-center">
-              <p className="text-lg font-semibold mb-2">Premium Access Required</p>
-              <p className="text-sm">Login to view all properties</p>
+          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm">
+            <div className="text-white text-center px-4">
+              {userType === 'visitor' ? (
+                <>
+                  <div className="mb-3">
+                    <svg className="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-semibold mb-2">Private Property</p>
+                  <p className="text-sm mb-3">Sign up to view this exclusive listing</p>
+                  <button 
+                    className="bg-white text-gray-900 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/signup');
+                    }}
+                  >
+                    Sign Up to View
+                  </button>
+                </>
+              ) : userType === 'regular' ? (
+                <>
+                  <div className="mb-3">
+                    <svg className="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M12 1.586l-4 4v12.828l4-4V1.586zM3.707 3.293A1 1 0 002 4v10a1 1 0 00.293.707L6 18.414V5.586L3.707 3.293zM17.707 5.293L14 1.586v12.828l2.293 2.293A1 1 0 0018 16V6a1 1 0 00-.293-.707z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-semibold mb-2">Premium Property</p>
+                  <p className="text-sm mb-3">Upgrade to premium to view exclusive listings</p>
+                  <button 
+                    className="bg-white text-gray-900 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/premium');
+                    }}
+                  >
+                    Upgrade to Premium
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="mb-3">
+                    <svg className="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-semibold mb-2">Access Required</p>
+                  <p className="text-sm">Contact admin for property access</p>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -117,10 +164,19 @@ const PropertyCard = ({ project, isBlurred = false, index }) => {
       <CardFooter>
         <Button 
           className="w-full"
-          onClick={() => navigate(`/projects/${project.id}`)}
+          onClick={() => {
+            if (isAccessible) {
+              navigate(`/projects/${project.id}`)
+            }
+          }}
           disabled={isBlurred}
+          variant={isBlurred ? "outline" : "default"}
         >
-          View Details
+          {isBlurred ? 
+            (userType === 'visitor' ? 'Sign Up to View' : 
+             userType === 'regular' ? 'Upgrade to View' : 'Access Required') 
+            : 'View Details'
+          }
         </Button>
       </CardFooter>
     </Card>

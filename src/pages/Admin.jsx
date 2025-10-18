@@ -11,6 +11,7 @@ import {
   useGrantPremium,
   useAdminRole,
   useProjectAccess,
+  usePublicProjectAccess,
 } from "../hooks/useUserManagement";
 import AdminTable from "../components/AdminTable";
 import UserTable from "../components/UserTable";
@@ -69,6 +70,7 @@ const Admin = () => {
   const { togglePremium } = useGrantPremium();
   const { toggleAdminRole } = useAdminRole();
   const { getUserProjectAccess, grantProjectAccess, testProjectAccess } = useProjectAccess();
+  const { getAllProjectsWithPublicStatus, toggleProjectPublicAccess } = usePublicProjectAccess();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -77,6 +79,7 @@ const Admin = () => {
   const [currentImages, setCurrentImages] = useState([]);
   const [activeTab, setActiveTab] = useState('properties');
   const [showProjectAccessModal, setShowProjectAccessModal] = useState(false);
+  const [projectsWithPublicStatus, setProjectsWithPublicStatus] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedProjects, setSelectedProjects] = useState([]);
   
@@ -340,13 +343,33 @@ const Admin = () => {
   // User management handlers
   const handleTogglePremium = async (user) => {
     try {
-      await togglePremium(user.id, !user.is_premium);
+      const willBePremium = !user.is_premium;
+      console.log(`Toggling premium for ${user.email}: ${user.is_premium} -> ${willBePremium}`);
+      
+      // Toggle premium status
+      const result = await togglePremium(user.id, willBePremium);
+      console.log('Toggle premium result:', result);
+      
+      // If granting premium access, give access to all projects by default
+      if (willBePremium && projects && projects.length > 0) {
+        const allProjectIds = projects.map(p => p.id);
+        console.log('Granting access to all projects:', allProjectIds);
+        await grantProjectAccess(user.id, allProjectIds);
+      }
+      
       toast({
         title: "Success",
-        description: `${user.email} ${user.is_premium ? 'premium access revoked' : 'granted premium access'}`,
+        description: willBePremium 
+          ? `${user.email} granted premium access with full project access`
+          : `${user.email} premium access revoked - now has visitor-level access to public projects only`,
       });
-      refetchUsers();
+      
+      // Refresh users list to update UI
+      console.log('Refreshing users...');
+      await refetchUsers();
+      console.log('Users refreshed');
     } catch (error) {
+      console.error('Premium toggle error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update premium status",
@@ -357,13 +380,32 @@ const Admin = () => {
 
   const handleToggleAdmin = async (user) => {
     try {
-      await toggleAdminRole(user.id, !user.is_admin);
+      const willBeAdmin = !user.is_admin;
+      console.log(`Toggling admin for ${user.email}: ${user.is_admin} -> ${willBeAdmin}`);
+      
+      // Toggle admin role
+      const result = await toggleAdminRole(user.id, willBeAdmin);
+      console.log('Toggle admin result:', result);
+      
+      // If granting admin role, also grant premium access
+      if (willBeAdmin && !user.is_premium) {
+        console.log('Also granting premium access for new admin');
+        await togglePremium(user.id, true);
+      }
+      
       toast({
         title: "Success",
-        description: `${user.email} ${user.is_admin ? 'admin role revoked' : 'granted admin role'}`,
+        description: willBeAdmin 
+          ? `${user.email} granted admin role with premium access`
+          : `${user.email} admin role revoked - access level adjusted accordingly`,
       });
-      refetchUsers();
+      
+      // Refresh users list to update UI
+      console.log('Refreshing users...');
+      await refetchUsers();
+      console.log('Users refreshed');
     } catch (error) {
+      console.error('Admin toggle error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update admin role",
@@ -373,6 +415,16 @@ const Admin = () => {
   };
 
   const handleManageProjectAccess = async (user) => {
+    // Don't allow project access management for admin users
+    if (user.is_admin) {
+      toast({
+        title: "Info",
+        description: "Admin users have access to all projects by default",
+        variant: "default",
+      });
+      return;
+    }
+    
     try {
       // Run diagnostic test
       await testProjectAccess(user.id);
@@ -466,6 +518,16 @@ const Admin = () => {
             >
               User Management
             </button>
+            <button
+              onClick={() => setActiveTab('public-access')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'public-access'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Visitor Access
+            </button>
           </nav>
         </div>
       </div>
@@ -551,7 +613,7 @@ const Admin = () => {
               <CardContent className="pt-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-yellow-600">
-                    {users?.filter(u => u.is_premium).length || 0}
+                    {users?.filter(u => u.is_premium && !u.is_admin).length || 0}
                   </div>
                   <div className="text-gray-600">Premium Users</div>
                 </div>
@@ -580,6 +642,18 @@ const Admin = () => {
             error={usersError}
           />
         </div>
+      )}
+
+      {/* Public Access Management Tab */}
+      {activeTab === 'public-access' && (
+        <PublicAccessManagement 
+          projects={projects}
+          getAllProjectsWithPublicStatus={getAllProjectsWithPublicStatus}
+          toggleProjectPublicAccess={toggleProjectPublicAccess}
+          projectsWithPublicStatus={projectsWithPublicStatus}
+          setProjectsWithPublicStatus={setProjectsWithPublicStatus}
+          toast={toast}
+        />
       )}
 
       {/* Edit/Create Modal */}
@@ -922,6 +996,196 @@ const Admin = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Public Access Management Component
+const PublicAccessManagement = ({ 
+  projects, 
+  getAllProjectsWithPublicStatus, 
+  toggleProjectPublicAccess, 
+  projectsWithPublicStatus, 
+  setProjectsWithPublicStatus, 
+  toast 
+}) => {
+  const [setupError, setSetupError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPublicStatus = async () => {
+      try {
+        setIsLoading(true);
+        setSetupError(false);
+        const projectsWithStatus = await getAllProjectsWithPublicStatus();
+        setProjectsWithPublicStatus(projectsWithStatus);
+      } catch (error) {
+        console.error('Error loading public project status:', error);
+        
+        // Check if it's a table doesn't exist error
+        if (error.message?.includes('relation "public_project_access" does not exist') || 
+            error.message?.includes('table "public_project_access" does not exist')) {
+          setSetupError(true);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to load project public status",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (projects && projects.length > 0) {
+      loadPublicStatus();
+    }
+  }, [projects, getAllProjectsWithPublicStatus, setProjectsWithPublicStatus, toast]);
+
+  const handleTogglePublicAccess = async (projectId, currentStatus) => {
+    try {
+      await toggleProjectPublicAccess(projectId, !currentStatus);
+      
+      // Update local state
+      setProjectsWithPublicStatus(prev => 
+        prev.map(project => 
+          project.id === projectId 
+            ? { ...project, is_public: !currentStatus }
+            : project
+        )
+      );
+
+      toast({
+        title: "Success",
+        description: `Project ${!currentStatus ? 'made public' : 'made private'} for visitors`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Error toggling public access:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update project visibility",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const publicProjectsCount = projectsWithPublicStatus.filter(p => p.is_public).length;
+
+  // Show setup error if database table doesn't exist
+  if (setupError) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="flex-shrink-0">
+              <svg className="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-900">Database Setup Required</h3>
+              <p className="text-red-700 text-sm mt-1">
+                The visitor access feature requires a database table that hasn't been created yet.
+              </p>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 border border-red-200 mb-4">
+            <h4 className="font-semibold text-gray-900 mb-2">Quick Setup Instructions:</h4>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+              <li>Open your <strong>Supabase Dashboard</strong></li>
+              <li>Go to <strong>SQL Editor</strong></li>
+              <li>Click <strong>New Query</strong></li>
+              <li>Copy the SQL from <code>VISITOR_ACCESS_SETUP.md</code> file</li>
+              <li>Run the query, then refresh this page</li>
+            </ol>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+              className="bg-white"
+            >
+              🔄 Refresh Page After Setup
+            </Button>
+            <p className="text-xs text-red-600">
+              Check the <code>VISITOR_ACCESS_SETUP.md</code> file in your project root for detailed instructions.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-blue-900 mb-2">Visitor Project Access</h3>
+        <p className="text-blue-700 text-sm">
+          Select which projects should be visible to visitors who are not logged in. 
+          Currently <strong>{publicProjectsCount}</strong> project(s) are visible to visitors.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Visitor Project Visibility</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              Loading projects...
+            </div>
+          ) : projectsWithPublicStatus.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No projects found.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projectsWithPublicStatus.map((project) => (
+                <div key={project.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900">{project.title}</h4>
+                    <p className="text-sm text-gray-600">
+                      {project.area} • {formatCurrency(project.price)}
+                    </p>
+                    <div className="flex items-center space-x-4 mt-2">
+                      <span className="text-xs text-gray-500">
+                        City: {project.city || 'N/A'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Type: {project.property_type || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      project.is_public 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {project.is_public ? 'Public' : 'Private'}
+                    </div>
+                    
+                    <Button
+                      size="sm"
+                      variant={project.is_public ? "destructive" : "default"}
+                      onClick={() => handleTogglePublicAccess(project.id, project.is_public)}
+                    >
+                      {project.is_public ? 'Make Private' : 'Make Public'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

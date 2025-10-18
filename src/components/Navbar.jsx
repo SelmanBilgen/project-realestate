@@ -42,12 +42,6 @@ const Navbar = () => {
                 </Link>
               )}
 
-              {isPremium && !isAdmin && (
-                <span className="text-green-600 px-3 py-2 rounded-md text-sm font-medium">
-                  Premium Member
-                </span>
-              )}
-
               {isAdmin && (
                 <Link
                   to="/admin"

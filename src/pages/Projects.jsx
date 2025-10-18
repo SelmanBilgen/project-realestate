@@ -76,54 +76,13 @@ const Projects = () => {
     return [...new Set(projects.map(p => p.area))]
   }, [projects])
 
-  // Filter projects based on filters AND user access
+  // Filter and sort projects based on filters and access control
   const filteredProjects = useMemo(() => {
     if (!projects) return []
     
     const filtered = projects.filter(project => {
-      // Access control logic based on user type
-      if (!session) {
-        // Non-logged-in visitors: show only public projects
-        if (accessLoading) {
-          return false // Still loading, don't show any projects
-        }
-        
-        if (publicProjectIds.length === 0) {
-          return false // No public projects available
-        }
-        
-        if (!publicProjectIds.includes(project.id)) {
-          return false // Project is not marked as public
-        }
-      } else if (isPremium && !isAdmin) {
-        // Premium non-admin users: show their specific project access
-        if (accessLoading) {
-          return false
-        }
-        
-        if (userProjectIds.length === 0) {
-          return false
-        }
-        
-        if (!userProjectIds.includes(project.id)) {
-          return false
-        }
-      } else if (!isPremium && !isAdmin && session) {
-        // Regular logged-in users: show public projects (same as visitors)
-        if (accessLoading) {
-          return false
-        }
-        
-        if (publicProjectIds.length === 0) {
-          return false
-        }
-        
-        if (!publicProjectIds.includes(project.id)) {
-          return false
-        }
-      }
-      // Admin users: see all projects (no filtering)
-      // This logic automatically allows admins to see everything
+      // Only filter by search/filter criteria, not access control
+      // Access control is now handled in the rendering with blur effects
       
       // Area filter
       if (filters.area && filters.area !== "" && project.area !== filters.area) return false
@@ -143,8 +102,36 @@ const Projects = () => {
       return true
     })
     
-    return filtered
-  }, [projects, filters, isPremium, isAdmin, userProjectIds, accessLoading])
+    // Sort projects to show accessible ones first
+    const sorted = filtered.sort((a, b) => {
+      let aIsAccessible = true
+      let bIsAccessible = true
+      
+      if (!session) {
+        // For visitors: prioritize public projects
+        aIsAccessible = publicProjectIds.includes(a.id)
+        bIsAccessible = publicProjectIds.includes(b.id)
+      } else if (isPremium && !isAdmin) {
+        // For premium users: prioritize projects they have access to
+        aIsAccessible = userProjectIds.includes(a.id)
+        bIsAccessible = userProjectIds.includes(b.id)
+      } else if (!isPremium && !isAdmin && session) {
+        // For regular logged-in users: prioritize public projects
+        aIsAccessible = publicProjectIds.includes(a.id)
+        bIsAccessible = publicProjectIds.includes(b.id)
+      }
+      // Admin users see all projects in original order
+      
+      // Sort accessible projects first, then by creation date or title
+      if (aIsAccessible && !bIsAccessible) return -1
+      if (!aIsAccessible && bIsAccessible) return 1
+      
+      // If both have same access level, sort by title
+      return a.title.localeCompare(b.title)
+    })
+    
+    return sorted
+  }, [projects, filters, session, isPremium, isAdmin, publicProjectIds, userProjectIds])
 
   if (isLoading || isAdminLoading || accessLoading) {
     return (
@@ -196,28 +183,61 @@ const Projects = () => {
       {/* Filters */}
       <Filters areas={areas} onFilterChange={setFilters} />
 
-      {/* Premium Access Banner */}
-      {!isPremium && (
-        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      {/* Access Information Banner */}
+      {!session && (
+        <Card className="mb-8 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <Eye className="h-8 w-8 text-blue-600" />
+                <div className="flex space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-gray-400 rounded-full blur-[1px]"></div>
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-blue-900">
-                    Unlock Premium Access
+                  <h3 className="text-lg font-semibold text-green-900">
+                    {publicProjectIds.length > 0 ? 'Free Preview Available' : 'Sign Up for Full Access'}
                   </h3>
-                  <p className="text-blue-700">
-                    View all {projects?.length || 0} properties and get detailed investment analysis
+                  <p className="text-green-700 text-sm">
+                    {publicProjectIds.length > 0 
+                      ? `🟢 ${publicProjectIds.length} public properties available • ⚫ ${(projects?.length || 0) - publicProjectIds.length} exclusive properties (blurred)`
+                      : `View all ${projects?.length || 0} properties and get detailed investment analysis`
+                    }
                   </p>
                 </div>
               </div>
               <Button 
                 variant="default" 
-                className="bg-blue-600 hover:bg-blue-700"
-                onClick={() => navigate('/login')}
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => navigate('/signup')}
               >
-                Get Premium Access
+                Sign Up Free
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {!isPremium && session && (
+        <Card className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Eye className="h-8 w-8 text-purple-600" />
+                <div>
+                  <h3 className="text-lg font-semibold text-purple-900">
+                    Unlock Premium Properties
+                  </h3>
+                  <p className="text-purple-700">
+                    Access exclusive premium listings and detailed investment analysis
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="default" 
+                className="bg-purple-600 hover:bg-purple-700"
+                onClick={() => navigate('/premium')}
+              >
+                Upgrade to Premium
               </Button>
             </div>
           </CardContent>
@@ -227,22 +247,47 @@ const Projects = () => {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map((project, index) => {
-          // Determine if this project should be blurred
+          // Determine if this project should be blurred based on access control
           let isBlurred = false
+          let isAccessible = true
           
-          if (!isPremium) {
-            // Non-premium users: blur projects after index 3
-            isBlurred = index >= 3
-          } else if (isPremium && !isAdmin && userProjectIds.length > 0) {
-            // Premium users with specific access: don't blur (they only see their projects)
-            isBlurred = false
+          if (!session) {
+            // Non-logged-in visitors: blur private projects, show public ones clearly
+            if (accessLoading) {
+              isBlurred = true // Blur while loading access info
+              isAccessible = false
+            } else {
+              isAccessible = publicProjectIds.includes(project.id)
+              isBlurred = !isAccessible // Blur if not in public access list
+            }
+          } else if (isPremium && !isAdmin) {
+            // Premium non-admin users: blur projects they don't have access to
+            if (accessLoading) {
+              isBlurred = true
+              isAccessible = false
+            } else {
+              isAccessible = userProjectIds.includes(project.id)
+              isBlurred = !isAccessible
+            }
+          } else if (!isPremium && !isAdmin && session) {
+            // Regular logged-in users: same as visitors - blur private projects
+            if (accessLoading) {
+              isBlurred = true
+              isAccessible = false
+            } else {
+              isAccessible = publicProjectIds.includes(project.id)
+              isBlurred = !isAccessible
+            }
           }
+          // Admin users: see all projects clearly (isBlurred stays false)
           
           return (
             <PropertyCard
               key={project.id}
               project={project}
               isBlurred={isBlurred}
+              isAccessible={isAccessible}
+              userType={!session ? 'visitor' : (isPremium ? 'premium' : 'regular')}
               index={index}
             />
           )
@@ -256,25 +301,12 @@ const Projects = () => {
             <div className="text-gray-400 mb-4">
               <Lock className="h-12 w-12 mx-auto" />
             </div>
-            {isPremium && !isAdmin && userProjectIds.length === 0 && !accessLoading ? (
-              <>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No project access granted
-                </h3>
-                <p className="text-gray-600">
-                  Please contact the administrator to get access to specific projects.
-                </p>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No properties found
-                </h3>
-                <p className="text-gray-600">
-                  Try adjusting your filters or check back later for new listings.
-                </p>
-              </>
-            )}
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No properties found
+            </h3>
+            <p className="text-gray-600">
+              Try adjusting your filters or check back later for new listings.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -287,7 +319,12 @@ const Projects = () => {
               <div className="text-3xl font-bold text-primary">
                 {filteredProjects.length}
               </div>
-              <div className="text-gray-600">Available Properties</div>
+              <div className="text-gray-600">
+                {!session 
+                  ? `Properties (${publicProjectIds.length} public)` 
+                  : 'Available Properties'
+                }
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -307,7 +344,10 @@ const Projects = () => {
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">
-                {Math.round(filteredProjects.reduce((acc, p) => acc + (p.roi || 0), 0) / filteredProjects.length)}%
+                {filteredProjects.length > 0 
+                  ? Math.round(filteredProjects.reduce((acc, p) => acc + (p.roi || 0), 0) / filteredProjects.length)
+                  : 0
+                }%
               </div>
               <div className="text-gray-600">Average ROI</div>
             </div>

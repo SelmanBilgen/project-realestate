@@ -16,12 +16,36 @@ export const useUsers = () => {
       const { data, error: fetchError } = await supabase
         .rpc('get_all_users_for_admin');
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('RPC function error:', fetchError);
+        throw fetchError;
+      }
 
+      console.log('Fetched users via RPC:', data);
       setUsers(data || []);
     } catch (err) {
       console.error('Error fetching users:', err);
       setError(err.message);
+      
+      // Fallback to direct query if RPC fails
+      try {
+        console.log('Trying fallback direct query...');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (!profileError) {
+            console.log('Fallback query successful:', profiles);
+            setUsers(profiles || []);
+            setError(null);
+          }
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback query also failed:', fallbackErr);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,34 +119,22 @@ export const useGrantPremium = () => {
   const togglePremium = async (userId, isPremium) => {
     try {
       setIsLoading(true);
+      console.log(`togglePremium called: userId=${userId}, isPremium=${isPremium}`);
 
-      // Check admin permission
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { data: currentProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      if (!currentProfile?.is_admin) {
-        throw new Error('Access denied: Admin privileges required');
-      }
-
+      // Use the RLS-safe admin function instead of direct update
       const { data, error } = await supabase
-        .from('profiles')
-        .update({ is_premium: isPremium })
-        .eq('id', userId)
-        .select();
+        .rpc('admin_toggle_premium', {
+          target_user_id: userId,
+          new_premium_status: isPremium
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC function error:', error);
+        throw error;
+      }
 
-      return data[0];
+      console.log('Premium status updated successfully via RPC:', data);
+      return { success: true };
     } catch (err) {
       console.error('Error updating premium status:', err);
       throw err;
@@ -268,34 +280,22 @@ export const useAdminRole = () => {
   const toggleAdminRole = async (userId, isAdmin) => {
     try {
       setIsLoading(true);
+      console.log(`toggleAdminRole called: userId=${userId}, isAdmin=${isAdmin}`);
 
-      // Check admin permission
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      const { data: currentProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      if (!currentProfile?.is_admin) {
-        throw new Error('Access denied: Admin privileges required');
-      }
-
+      // Use the RLS-safe admin function instead of direct update
       const { data, error } = await supabase
-        .from('profiles')
-        .update({ is_admin: isAdmin })
-        .eq('id', userId)
-        .select();
+        .rpc('admin_toggle_admin_role', {
+          target_user_id: userId,
+          new_admin_status: isAdmin
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC function error:', error);
+        throw error;
+      }
 
-      return data[0];
+      console.log('Admin role updated successfully via RPC:', data);
+      return { success: true };
     } catch (err) {
       console.error('Error updating admin role:', err);
       throw err;

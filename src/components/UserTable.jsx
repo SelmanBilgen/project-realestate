@@ -171,10 +171,11 @@ const UserTable = ({
                           variant="outline"
                           size="sm"
                           onClick={() => onTogglePremium(user)}
-                          className={user.is_premium ? "bg-yellow-50 border-yellow-300 text-yellow-700" : ""}
+                          disabled={user.is_admin}
+                          className={`${user.is_premium ? "bg-yellow-50 border-yellow-300 text-yellow-700" : ""} ${user.is_admin ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           <Star className="w-4 h-4 mr-1" />
-                          {user.is_premium ? "Remove Premium" : "Grant Premium"}
+                          {user.is_admin ? "Admin" : (user.is_premium ? "Remove Premium" : "Grant Premium")}
                         </Button>
                         <Button
                           variant="outline"
@@ -189,9 +190,11 @@ const UserTable = ({
                           variant="outline"
                           size="sm"
                           onClick={() => onManageProjectAccess(user)}
+                          disabled={user.is_admin}
+                          className={user.is_admin ? "opacity-50 cursor-not-allowed" : ""}
                         >
                           <Settings className="w-4 h-4 mr-1" />
-                          Projects
+                          {user.is_admin ? "All Projects" : "Projects"}
                         </Button>
                       </div>
                     </td>
